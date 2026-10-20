@@ -1,0 +1,63 @@
+{
+  "meta": {
+    "title": "Iran Update Evening Special Report, March 16, 2026",
+    "report_date": "2026-03-16",
+    "report_type": "evening_special",
+    "url": "https://understandingwar.org/research/middle-east/iran-update-evening-special-report-march-16-2026/",
+    "retrieved_via": "internet_archive"
+  },
+  "key_takeaways": [
+    "Iran has not attacked any vessels in the Strait of Hormuz since March 12."
+  ],
+  "events": [
+    {
+      "kind": "negative_observation",
+      "event_date": null,
+      "summary": "No attacks on vessels in Hormuz since 12 March.",
+      "initiator": "iran",
+      "target_country": null,
+      "location": null,
+      "confidence": 0,
+      "sources": [
+        {
+          "outlet": "ISW-CTP",
+          "evidence": "isw_assessment"
+        }
+      ],
+      "first_occurrence": false,
+      "evidence_quote": "Iran has not attacked any vessels in the Strait of Hormuz since March 12.",
+      "activity": "attacks on vessels in the Strait of Hormuz",
+      "since": "2026-03-12"
+    },
+    {
+      "kind": "diplomacy",
+      "event_date": null,
+      "summary": "Iran appears to offer safe passage to some oil tankers.",
+      "initiator": "iran",
+      "target_country": null,
+      "location": null,
+      "confidence": 3,
+      "sources": [
+        {
+          "outlet": "ISW-CTP",
+          "evidence": "isw_assessment"
+        }
+      ],
+      "first_occurrence": false,
+      "evidence_quote": "The Iranian regime appears to be offering safe passage through the Strait of Hormuz to certain oil-carrying vessels.",
+      "development": "other",
+      "mediator": null
+    }
+  ],
+  "chokepoints": [
+    {
+      "chokepoint": "strait_of_hormuz",
+      "status": 1,
+      "since": "2026-03-12",
+      "confidence": 3,
+      "evidence_quote": "appears to be offering safe passage through the Strait of Hormuz to certain oil-carrying vessels."
+    }
+  ],
+  "escalation_trend": "de_escalating",
+  "analyst_caveats": []
+}

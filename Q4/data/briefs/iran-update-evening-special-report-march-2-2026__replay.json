@@ -1,0 +1,109 @@
+{
+  "meta": {
+    "title": "Iran Update Evening Special Report, March 2, 2026",
+    "report_date": "2026-03-02",
+    "report_type": "evening_special",
+    "url": "https://understandingwar.org/research/middle-east/iran-update-evening-special-report-march-2-2026/",
+    "retrieved_via": "internet_archive"
+  },
+  "key_takeaways": [
+    "Iran is attempting to disrupt international shipping through the Strait of Hormuz as part of a broader effort to impose a cost on the Gulf states."
+  ],
+  "events": [
+    {
+      "kind": "infrastructure_attack",
+      "event_date": null,
+      "summary": "QatarEnergy halted LNG production after drone attacks on Ras Laffan and Mesaieed.",
+      "initiator": "iran",
+      "target_country": "Qatar",
+      "location": {
+        "name": "Ras Laffan Industrial City",
+        "country": "Qatar",
+        "chokepoint": null
+      },
+      "confidence": 6,
+      "sources": [
+        {
+          "outlet": "Qatar / QatarEnergy",
+          "evidence": "official_statement"
+        }
+      ],
+      "first_occurrence": false,
+      "evidence_quote": "Qatar announced that it has ceased production of all liquefied natural gas (LNG) and associated products.",
+      "asset": {
+        "name": "Ras Laffan",
+        "asset_type": "lng_facility",
+        "operator": "QatarEnergy"
+      },
+      "damage": "unknown",
+      "output_impact": "Qatar ceased production of all LNG (~20% of global supply)"
+    },
+    {
+      "kind": "infrastructure_attack",
+      "event_date": null,
+      "summary": "Aramco shut Ras Tanura refinery as a precaution after attempted drone strikes.",
+      "initiator": "iran",
+      "target_country": "Saudi Arabia",
+      "location": {
+        "name": "Ras Tanura",
+        "country": "Saudi Arabia",
+        "chokepoint": null
+      },
+      "confidence": 6,
+      "sources": [
+        {
+          "outlet": "Saudi Aramco",
+          "evidence": "official_statement"
+        }
+      ],
+      "first_occurrence": false,
+      "evidence_quote": "shut down its Ras Tanura refinery as a precautionary measure after Iranian drones attempted to strike the refinery on March 2.",
+      "asset": {
+        "name": "Ras Tanura refinery",
+        "asset_type": "refinery",
+        "operator": "Saudi Aramco"
+      },
+      "damage": "none",
+      "output_impact": "refinery shut down as a precautionary measure"
+    },
+    {
+      "kind": "maritime_incident",
+      "event_date": null,
+      "summary": "Projectiles reportedly hit a docked oil tanker in Bahrain, causing a fire.",
+      "initiator": "iran",
+      "target_country": null,
+      "location": {
+        "name": "Bahrain",
+        "country": "Bahrain",
+        "chokepoint": "strait_of_hormuz"
+      },
+      "confidence": 2,
+      "sources": [
+        {
+          "outlet": "Reuters",
+          "evidence": "media_report"
+        }
+      ],
+      "first_occurrence": false,
+      "evidence_quote": "Iran also reportedly launched two unspecified projectiles at the Stena Imperative oil tanker, which was docked in Bahrain",
+      "chokepoint": "strait_of_hormuz",
+      "vessel": {
+        "name": "Stena Imperative",
+        "asset_type": "tanker",
+        "operator": null
+      },
+      "incident": "attack"
+    }
+  ],
+  "chokepoints": [
+    {
+      "chokepoint": "strait_of_hormuz",
+      "status": 5,
+      "since": null,
+      "confidence": 4,
+      "evidence_quote": "Iran is attempting to disrupt international shipping through the Strait of Hormuz"
+    }
+  ],
+  "escalation_trend": "escalating",
+  "analyst_caveats": []
+}

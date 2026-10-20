@@ -25,7 +25,7 @@ FEB_28_AM = DailyBrief(
                    "Islamic Republic, among other objectives."],
     events=[
         Strike(summary="Iran struck US bases in six regional states in retaliation.", initiator=Actor.IRAN,
-               target_type=AssetType.MILITARY_BASE, weapon="mixed", confidence=Confidence.LIKELY, first_occurrence=True,
+               target_type=AssetType.MILITARY_BASE, weapon="mixed", confidence=Confidence.LIKELY,
                location=Location(name="US bases in the Gulf", country="Bahrain"), sources=[isw],
                evidence_quote="Iran has attacked US bases in Bahrain, Qatar, the United Arab Emirates, Kuwait, Jordan, and Saudi Arabia."),
         LeadershipTargeted(summary="Israel reportedly killed senior Iranian security officials.", initiator=Actor.ISRAEL,
@@ -65,7 +65,7 @@ MAR_2 = DailyBrief(
                              location=Location(name="Ras Laffan Industrial City", country="Qatar"),
                              asset=Asset(name="Ras Laffan", asset_type=AssetType.LNG_FACILITY, operator="QatarEnergy"),
                              output_impact="Qatar ceased production of all LNG (~20% of global supply)",
-                             confidence=Confidence.CONFIRMED, sources=[gov("Qatar / QatarEnergy")], first_occurrence=True,
+                             confidence=Confidence.CONFIRMED, sources=[gov("Qatar / QatarEnergy")],
                              evidence_quote="Qatar announced that it has ceased production of all liquefied natural gas (LNG) and associated products."),
         InfrastructureAttack(summary="Aramco shut Ras Tanura refinery as a precaution after attempted drone strikes.",
                              initiator=Actor.IRAN, target_country="Saudi Arabia", damage="none",

@@ -1,0 +1,43 @@
+{
+  "meta": {
+    "title": "Iran Update Evening Special Report, February 28, 2026",
+    "report_date": "2026-02-28",
+    "report_type": "evening_special",
+    "url": "https://understandingwar.org/research/middle-east/iran-update-evening-special-report-february-28-2026/",
+    "retrieved_via": "internet_archive"
+  },
+  "key_takeaways": [],
+  "events": [
+    {
+      "kind": "maritime_incident",
+      "event_date": null,
+      "summary": "IRGC warned vessels not to transit Hormuz.",
+      "initiator": "irgc",
+      "target_country": null,
+      "location": null,
+      "confidence": 2,
+      "sources": [
+        {
+          "outlet": "Reuters",
+          "evidence": "media_report"
+        }
+      ],
+      "first_occurrence": false,
+      "evidence_quote": "“no ship is allowed to pass the Strait of Hormuz.”",
+      "chokepoint": "strait_of_hormuz",
+      "vessel": null,
+      "incident": "warning"
+    }
+  ],
+  "chokepoints": [
+    {
+      "chokepoint": "strait_of_hormuz",
+      "status": 3,
+      "since": null,
+      "confidence": 0,
+      "evidence_quote": "Iran has not attacked vessels in the Strait of Hormuz at the time of this writing"
+    }
+  ],
+  "escalation_trend": "escalating",
+  "analyst_caveats": []
+}

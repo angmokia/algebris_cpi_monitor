@@ -9,3 +9,6 @@ __pycache__/
 *.docx
 # keep the data snapshot so the hosted app starts instantly, but not logs
 **/pipeline.log
+
+# ISW article copies (copyright) - fetched at runtime
+Q4/data/raw/

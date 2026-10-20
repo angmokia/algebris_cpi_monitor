@@ -1,0 +1,62 @@
+{
+  "meta": {
+    "title": "Iran Update Special Report: US and Israeli Strikes, February 28, 2026",
+    "report_date": "2026-02-28",
+    "report_type": "special",
+    "url": "https://understandingwar.org/research/middle-east/iran-update-special-report-us-and-israeli-strikes-february-28-2026/",
+    "retrieved_via": "internet_archive"
+  },
+  "key_takeaways": [
+    "The United States and Israel have launched a strike campaign into Iran in order to topple the Islamic Republic, among other objectives."
+  ],
+  "events": [
+    {
+      "kind": "strike",
+      "event_date": null,
+      "summary": "Iran struck US bases in six regional states in retaliation.",
+      "initiator": "iran",
+      "target_country": null,
+      "location": {
+        "name": "US bases in the Gulf",
+        "country": "Bahrain",
+        "chokepoint": null
+      },
+      "confidence": 4,
+      "sources": [
+        {
+          "outlet": "ISW-CTP",
+          "evidence": "isw_assessment"
+        }
+      ],
+      "first_occurrence": false,
+      "evidence_quote": "Iran has attacked US bases in Bahrain, Qatar, the United Arab Emirates, Kuwait, Jordan, and Saudi Arabia.",
+      "weapon": "mixed",
+      "target_type": "military_base",
+      "munitions_count": null
+    },
+    {
+      "kind": "leadership_targeted",
+      "event_date": null,
+      "summary": "Israel reportedly killed senior Iranian security officials.",
+      "initiator": "israel",
+      "target_country": null,
+      "location": null,
+      "confidence": 2,
+      "sources": [
+        {
+          "outlet": "Israeli officials",
+          "evidence": "official_statement"
+        }
+      ],
+      "first_occurrence": false,
+      "evidence_quote": "Israeli officials assess that the IDF killed Defense Council Secretary Ali Shamkhani",
+      "person": "Ali Shamkhani, Defense Council Secretary",
+      "outcome": "killed"
+    }
+  ],
+  "chokepoints": [],
+  "escalation_trend": "escalating",
+  "analyst_caveats": [
+    "Some of the information that is available in the open-source will be contradictory or inaccurate."
+  ]
+}

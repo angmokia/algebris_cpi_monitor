@@ -1,0 +1,11 @@
+# secrets
+.env
+# local / OS noise
+__pycache__/
+.ipynb_checkpoints/
+.DS_Store
+~$*
+# case-study brief (not for the repo)
+*.docx
+# keep the data snapshot so the hosted app starts instantly, but not logs
+**/pipeline.log

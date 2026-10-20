@@ -1,0 +1,5 @@
+# Extra packages to run / re-execute the notebook locally
+-r ../requirements.txt
+jupyter
+nbformat
+nbconvert

@@ -1,0 +1,17 @@
+# Render Blueprint: New -> Blueprint -> pick this repo. Free web service running the Dash app.
+services:
+  - type: web
+    name: us-inflation-monitor
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --chdir Q1_Q2 app:server --workers 1 --threads 4 --timeout 120 --bind 0.0.0.0:$PORT
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.11
+      - key: FRED_API_KEY        # optional: enables the CPI/PCE release calendar (set in the Render dashboard)
+        sync: false
+      - key: TRUFLATION_API_KEY  # optional: official Truflation API; otherwise the public TRUF.NETWORK gateway
+        sync: false

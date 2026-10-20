@@ -1,0 +1,23 @@
+leaf,bls_match,corr,weight
+170,Medical services,1.0,7.478
+96,OER,1.0,5.515
+111,Telephone,0.9777,2.762
+135,New vehicles,1.0,1.898
+156,Vehicle maintenance,1.0,1.597
+182,Food away,1.0,1.49
+128,Water/sewer,1.0,1.333
+146,Electricity,1.0,1.316
+87,Tuition,1.0,1.31
+199,Women's apparel,0.9922,1.087
+100,Medical commodities,0.993,0.786
+83,Footwear,1.0,0.666
+180,Lodging away,1.0,0.598
+163,Men's apparel,0.9715,0.477
+98,Personal care,1.0,0.425
+121,Utility gas,1.0,0.36
+95,Tobacco,1.0,0.302
+154,Alcohol,1.0,0.286
+181,Public transport,1.0,0.266
+131,Educational books,1.0,0.192
+105,New vehicles,1.0,0.151
+177,Lodging away,1.0,0.133

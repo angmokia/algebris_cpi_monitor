@@ -1,5 +1,6 @@
 """
 Truflation vs official US inflation — Plotly Dash dashboard (Case study Q2).
+Live: https://us-inflation-monitor.onrender.com/
 
 Run locally:   python app.py            -> http://127.0.0.1:8050
 Hosted:        gunicorn app:server      (Procfile included)

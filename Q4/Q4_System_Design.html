@@ -7511,420 +7511,119 @@ a.anchor-link {
 <!-- End of mermaid configuration --></head>
 <body class="jp-Notebook" data-jp-theme-light="true" data-jp-theme-name="JupyterLab Light">
 <main>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=57b9f1bc">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=c5e324a2">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="Q4-%C2%B7-System-design:-LLM-extraction-from-ISW's-daily-Iran-Updates">Q4 · System design: LLM extraction from ISW's daily Iran Updates<a class="anchor-link" href="#Q4-%C2%B7-System-design:-LLM-extraction-from-ISW's-daily-Iran-Updates">¶</a></h1><p><strong>Brief.</strong> The PM sees the US–Iran war (which began on 28 Feb 2026) as a driver of global inflation and wants daily
-updates scraped from ISW. An LLM extracts key facts from each article. The graded part is the <strong>schema</strong> and how
-the <strong>system design follows OOP principles</strong>. Running it on the first articles after the war began is optional.</p>
-<table>
-<thead>
-<tr>
-<th>File</th>
-<th>Role</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>schema.py</code></td>
-<td>Pydantic schema: controlled vocabulary (enums), event class hierarchy, <code>DailyBrief</code>, <code>BriefDiff</code></td>
-</tr>
-<tr>
-<td><code>isw_pipeline.py</code></td>
-<td>The system: sources → parser → prompt → LLM client → extractor → repository → analyser</td>
-</tr>
-<tr>
-<td><code>examples.py</code></td>
-<td>Hand-labelled "gold" briefs for five real reports (28 Feb – 16 Mar 2026)</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Contents:</strong> 1. What the source looks like · 2. Design goals · 3. Architecture · 4. Schema · 5. OOP principles ·
-6. Demo on the first weeks of the war · 7. Optional live LLM run · 8. Limitations</p>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h1 id="Q4-%C2%B7-LLM-extraction-from-ISW-Iran-Updates">Q4 · LLM extraction from ISW Iran Updates<a class="anchor-link" href="#Q4-%C2%B7-LLM-extraction-from-ISW-Iran-Updates">¶</a></h1>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=aa2dfc3a">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs jp-mod-noInput" id="cell-id=58c88209">
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=b9e5e622">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [1]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-<div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="o">%</span><span class="k">load_ext</span> autoreload
-<span class="o">%</span><span class="k">autoreload</span> 2
-<span class="kn">import</span><span class="w"> </span><span class="nn">json</span><span class="o">,</span><span class="w"> </span><span class="nn">logging</span><span class="o">,</span><span class="w"> </span><span class="nn">os</span><span class="o">,</span><span class="w"> </span><span class="nn">sys</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">plotly.graph_objects</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">go</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">plotly.io</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pio</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">plotly.subplots</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_subplots</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">IPython.display</span><span class="w"> </span><span class="kn">import</span> <span class="n">display</span><span class="p">,</span> <span class="n">Markdown</span>
-
-<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">WARNING</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="n">pio</span><span class="o">.</span><span class="n">renderers</span><span class="o">.</span><span class="n">default</span> <span class="o">=</span> <span class="s2">"plotly_mimetype+notebook_connected"</span>
-<span class="n">pd</span><span class="o">.</span><span class="n">set_option</span><span class="p">(</span><span class="s2">"display.width"</span><span class="p">,</span> <span class="mi">160</span><span class="p">,</span> <span class="s2">"display.max_colwidth"</span><span class="p">,</span> <span class="mi">120</span><span class="p">)</span>
-
-<span class="kn">import</span><span class="w"> </span><span class="nn">schema</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sc</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">isw_pipeline</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pp</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">examples</span><span class="w"> </span><span class="kn">import</span> <span class="n">GOLD</span>
-<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s2">"../Q1_Q2"</span><span class="p">);</span> <span class="kn">import</span><span class="w"> </span><span class="nn">charts</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ch</span>          <span class="c1"># same dark theme as the dashboard</span>
-</pre></div>
-</div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=f76cfa9b">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<hr/>
-<h2 id="1.-What-the-source-looks-like">1. What the source looks like<a class="anchor-link" href="#1.-What-the-source-looks-like">¶</a></h2><p>I read eight archived reports from 27 Feb (pre-war) to 16 Mar. The findings below drove the design.</p>
-<table>
-<thead>
-<tr>
-<th>Observation</th>
-<th>Design consequence</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>ISW writes about <strong>military operations, not prices</strong>. Price or market words appear 0–4 times in a ~4,000-word report</td>
-<td>The LLM extracts <strong>operational facts</strong>. The schema maps them to <strong>inflation channels</strong>; prices come from our own data (Q1–Q3)</td>
-</tr>
-<tr>
-<td>The Hormuz story moves through <strong>stages</strong>: warned vessels (28 Feb) → "may have started attacking" (1 Mar) → tanker hit, UKMTO incidents (2–4 Mar) → "has not attacked any vessels since March 12", safe passage (16 Mar)</td>
-<td>An <strong>ordered status ladder</strong> for each chokepoint, so day-over-day change is computable</td>
-</tr>
-<tr>
-<td>ISW grades its language: "likely" (56×), "reportedly" (56×), "claimed", "may have", "has not observed", "satellite imagery"</td>
-<td><strong>Confidence, evidence type and source</strong> are required fields, and the model must not upgrade them</td>
-</tr>
-<tr>
-<td>Absence matters: "Iran has not attacked any vessels … since March 12"</td>
-<td>A dedicated <strong>negative-observation</strong> event type</td>
-</tr>
-<tr>
-<td>2 Mar: Qatar halted all LNG output (≈20% of global supply) after drone attacks; Aramco shut Ras Tanura</td>
-<td><strong>Named assets with an operator and output impact</strong>: the facts that actually move inflation expectations</td>
-</tr>
-<tr>
-<td>understandingwar.org and criticalthreats.org block scripts (Cloudflare, HTTP 403)</td>
-<td><strong>Pluggable sources</strong>: Internet Archive by default, direct or licensed feed or manual upload as alternatives</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=bd6b6687">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<hr/>
-<h2 id="2.-Design-goals">2. Design goals<a class="anchor-link" href="#2.-Design-goals">¶</a></h2><ol>
-<li><strong>Decision-useful.</strong> Answer the PM's morning question: <em>what changed overnight that matters for inflation, and how
-sure are we?</em></li>
-<li><strong>Faithful.</strong> Every fact carries a verbatim quote checked against the article, plus ISW's own confidence wording.</li>
-<li><strong>Facts vs analytics.</strong> The LLM extracts facts. Deterministic code turns them into channel scores and diffs, so
-the scoring is auditable, versioned and identical across LLMs.</li>
-<li><strong>Swappable parts.</strong> Source, LLM provider and storage can each change without touching the rest.</li>
-</ol>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=d195c7ea">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<hr/>
-<h2 id="3.-Architecture">3. Architecture<a class="anchor-link" href="#3.-Architecture">¶</a></h2><pre><code>            ┌──────────────────────── ExtractionPipeline (composition root) ─────────────────────────┐
-            │                                                                                        │
- slugs ──▶  ArticleSource ──▶ ISWParser ──▶ BriefExtractor ───────────────▶ BriefRepository ──▶ BriefAnalyzer ──▶ PM
-            (ABC)             HTML → text    │  PromptBuilder (from schema)  (ABC)               timeline, state,
-             ├ InternetArchiveSource         │  LLMClient (ABC)              └ JsonFileRepository  diffs, Evaluator
-             ├ DirectISWSource               │   ├ OpenRouterClient
-             └ LocalFileSource               │   └ ReplayClient (tests)
-                                             │  Pydantic validation ──✗──▶ error fed back to LLM (retry ≤3)
-                                             └  verify_quotes() ──✗──▶ drop unverifiable events
-</code></pre>
-<table>
-<thead>
-<tr>
-<th>Component</th>
-<th>Single responsibility</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>ArticleSource</code></td>
-<td>Get raw HTML for a report (template method: cache → <code>_download()</code> → parse)</td>
-</tr>
-<tr>
-<td><code>ISWParser</code></td>
-<td>HTML → clean report text; date and report type from the URL</td>
-</tr>
-<tr>
-<td><code>PromptBuilder</code></td>
-<td>Build the system prompt <strong>from the schema</strong> (vocabulary, confidence ladder, one few-shot example)</td>
-</tr>
-<tr>
-<td><code>LLMClient</code></td>
-<td>One call: prompt + JSON schema → raw JSON text</td>
-</tr>
-<tr>
-<td><code>BriefExtractor</code></td>
-<td>JSON → validated <code>DailyBrief</code>; self-repair retries; hallucination guard</td>
-</tr>
-<tr>
-<td><code>BriefRepository</code></td>
-<td>Persist and reload briefs (one JSON file per report and model)</td>
-</tr>
-<tr>
-<td><code>BriefAnalyzer</code> / <code>Evaluator</code></td>
-<td>Timeline, running chokepoint state, diffs; scoring against gold labels</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=6e92557b">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<hr/>
-<h2 id="4.-The-schema-(schema.py)">4. The schema (<code>schema.py</code>)<a class="anchor-link" href="#4.-The-schema-(schema.py)">¶</a></h2><p><strong>Controlled vocabulary (enums):</strong> <code>InflationChannel</code> · <code>ChokepointStatus</code> (ordered ladder) · <code>Confidence</code> (ISW's
-estimative ladder, ordered) · <code>EvidenceType</code> · <code>Chokepoint</code> · <code>Actor</code> · <code>AssetType</code> · <code>ReportType</code>.</p>
-<p><strong>Event hierarchy.</strong> One abstract base class and six concrete types, chosen by a <code>kind</code> discriminator:</p>
-<pre><code>ConflictEvent  (date, summary, initiator, location, confidence, sources[], first_occurrence, evidence_quote)
- ├─ Strike                 weapon, target_type, munitions_count
- ├─ MaritimeIncident       chokepoint, vessel, incident (warning / harassment / seizure / attack / mine …)
- ├─ InfrastructureAttack   asset (name, type, operator), damage, output_impact
- ├─ LeadershipTargeted     person, outcome
- ├─ Diplomacy              development (talks / ceasefire / sanctions …), mediator
- └─ NegativeObservation    activity, since          ("has not attacked … since March 12")
-each implements channels(), direction(), severity() → weight() = severity × confidence
-</code></pre>
-<p><strong>Aggregate:</strong> <code>DailyBrief</code> = report metadata + Key Takeaways (verbatim) + events + chokepoint assessments +
-escalation trend + ISW's caveats. It provides <code>verify_quotes()</code>, the derived <code>channel_scores</code>, and
-<code>diff(previous) → BriefDiff</code>.</p>
-<p>The JSON schema is generated from these classes and sent to the LLM, and the field descriptions double as
-instructions:</p>
-</div>
-</div>
-</div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=a2898c25">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [2]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-<div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="n">js</span> <span class="o">=</span> <span class="n">sc</span><span class="o">.</span><span class="n">DailyBrief</span><span class="o">.</span><span class="n">model_json_schema</span><span class="p">()</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"DailyBrief JSON schema: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">js</span><span class="p">))</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> chars, </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">js</span><span class="p">[</span><span class="s1">'$defs'</span><span class="p">])</span><span class="si">}</span><span class="s2"> definitions"</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">"Event types:"</span><span class="p">,</span> <span class="p">[</span><span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">js</span><span class="p">[</span><span class="s2">"$defs"</span><span class="p">]</span> <span class="k">if</span> <span class="n">d</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"Strike"</span><span class="p">,</span> <span class="s2">"MaritimeIncident"</span><span class="p">,</span> <span class="s2">"InfrastructureAttack"</span><span class="p">,</span>
-                                                       <span class="s2">"LeadershipTargeted"</span><span class="p">,</span> <span class="s2">"Diplomacy"</span><span class="p">,</span> <span class="s2">"NegativeObservation"</span><span class="p">)])</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">System prompt built from the schema (first 1,200 chars):</span><span class="se">\n</span><span class="s2">"</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">pp</span><span class="o">.</span><span class="n">PromptBuilder</span><span class="p">()</span><span class="o">.</span><span class="n">system</span><span class="p">()[:</span><span class="mi">1200</span><span class="p">])</span>
-</pre></div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell-outputWrapper">
-<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
-</div>
-<div class="jp-OutputArea jp-Cell-outputArea">
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>DailyBrief JSON schema: 16,404 chars, 18 definitions
-Event types: ['Diplomacy', 'InfrastructureAttack', 'LeadershipTargeted', 'MaritimeIncident', 'NegativeObservation', 'Strike']
-
-System prompt built from the schema (first 1,200 chars):
-
-You extract facts from ISW-CTP 'Iran Update' reports for an inflation-focused portfolio manager.
-Return ONE JSON object matching the DailyBrief schema. Rules:
-1. Extract only what the report states. Never infer prices or add outside knowledge.
-2. Every evidence_quote must be copied verbatim from the report (no paraphrase, max 400 chars).
-3. Map confidence from ISW's own wording; never upgrade it:
-- CONFIRMED: confirmed, satellite imagery, footage, geolocated
-- ALMOST_CERTAIN: almost certainly
-- LIKELY: likely, ISW-CTP assesses, probably
-- POSSIBLE: may, may have, could, appears to, suggests
-- CLAIMED: reportedly, claimed, according to
-- UNVERIFIED: unconfirmed, unverified, cannot independently verify
-- NOT_OBSERVED: has not observed, has not attacked, no reports of
-4. CONFIRMED needs satellite imagery, footage, geolocation or an official statement as a source.
-5. Record absence of activity ('has not attacked ... since') as a negative_observation event.
-6. Chokepoint status ladder: OPEN, MANAGED_PASSAGE, LULL, THREATENED, SUSPECTED_ATTACKS, CONFIRMED_ATTACKS, CLOSED.
-7. Prioritise energy facilities, shipping/chokepoints, spread to Gulf states, leadership, nuclear, ceasefire/diplomac
-</pre>
-</div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=c35efbf0">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<hr/>
-<h2 id="5.-How-the-design-follows-OOP-principles">5. How the design follows OOP principles<a class="anchor-link" href="#5.-How-the-design-follows-OOP-principles">¶</a></h2><table>
-<thead>
-<tr>
-<th>Principle</th>
-<th>Where</th>
-<th>Why it helps here</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Abstraction</strong></td>
-<td><code>ArticleSource</code>, <code>LLMClient</code>, <code>BriefRepository</code> are abstract base classes; <code>ConflictEvent</code> is the abstract event</td>
-<td>The pipeline is written against <em>what</em> a component does, not <em>how</em>. Switching ISW access route or LLM vendor is a one-line change</td>
-</tr>
-<tr>
-<td><strong>Encapsulation</strong></td>
-<td>Rules live inside the models: CONFIRMED needs hard evidence; one assessment per chokepoint; immutable (<code>frozen</code>) objects; <code>verify_quotes()</code> on the brief</td>
-<td>Invalid states can't be built. An LLM answer that breaks a rule fails validation and is sent back for repair</td>
-</tr>
-<tr>
-<td><strong>Inheritance</strong></td>
-<td>Event subclasses share <code>ConflictEvent</code>'s fields and validator; sources share <code>ArticleSource.get()</code> (template method)</td>
-<td>Common behaviour is written once; a subclass adds only what's specific to it</td>
-</tr>
-<tr>
-<td><strong>Polymorphism</strong></td>
-<td><code>channels()</code>, <code>direction()</code>, <code>severity()</code> differ per event type; <code>DailyBrief.channel_scores</code> just loops over events. The <code>kind</code> discriminator picks the class when parsing JSON</td>
-<td>Adding an event type doesn't change scoring or diffing code</td>
-</tr>
-<tr>
-<td><strong>Composition</strong></td>
-<td><code>ExtractionPipeline</code> = source + extractor + repository; <code>BriefExtractor</code> = LLM client + prompt builder; <code>DailyBrief</code> aggregates events</td>
-<td>Parts are assembled, not hard-wired, so each is testable on its own</td>
-</tr>
-<tr>
-<td><strong>S</strong>ingle responsibility</td>
-<td>Parser parses, extractor validates, analyser analyses, repository stores</td>
-<td>Changes stay local (e.g. ISW redesigns its HTML → only <code>ISWParser</code> changes)</td>
-</tr>
-<tr>
-<td><strong>O</strong>pen/closed</td>
-<td>New <code>ArticleSource</code> or event type = new subclass; no edits to existing classes</td>
-<td>Safe to extend under time pressure</td>
-</tr>
-<tr>
-<td><strong>L</strong>iskov substitution</td>
-<td>Any <code>ArticleSource</code> / <code>LLMClient</code> works in the pipeline: <code>ReplayClient</code> replaces <code>OpenRouterClient</code> in tests</td>
-<td>Deterministic, offline tests of the full pipeline</td>
-</tr>
-<tr>
-<td><strong>I</strong>nterface segregation</td>
-<td>Each interface has one or two methods (<code>_download</code>, <code>complete</code>, <code>save</code> / <code>load_all</code>)</td>
-<td>Implementations stay trivial</td>
-</tr>
-<tr>
-<td><strong>D</strong>ependency inversion</td>
-<td><code>BriefExtractor</code> depends on the <code>LLMClient</code> abstraction, injected by the caller</td>
-<td>No vendor lock-in; cost or model changes don't touch extraction logic</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=75f557b0">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<hr/>
-<h2 id="6.-Demo:-the-first-weeks-of-the-war">6. Demo: the first weeks of the war<a class="anchor-link" href="#6.-Demo:-the-first-weeks-of-the-war">¶</a></h2><p>The full pipeline runs on five real reports from the Internet Archive. The LLM is played by <code>ReplayClient</code>,
-which returns the hand-labelled gold briefs, so the run is deterministic and needs no API key. Two faults are
-injected to show the safeguards working:</p>
-<ul>
-<li><strong>28 Feb (special):</strong> the first answer claims "confirmed" on a social-media source. Validation fails, the error is
-fed back, and the second answer passes.</li>
-<li><strong>2 Mar:</strong> one extra event carries a quote that isn't in the article. <code>verify_quotes()</code> drops it.</li>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h2 id="Design-drivers">Design drivers<a class="anchor-link" href="#Design-drivers">¶</a></h2><ul>
+<li>ISW rarely mentions prices → extract facts, map to inflation channels.</li>
+<li>Hormuz moved in stages → ordered status ladder.</li>
+<li>ISW grades claims → confidence + source fields.</li>
+<li>ISW blocks scripts → pluggable source.</li>
 </ul>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=b99bf027">
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=fce987a5">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [3]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-<div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="n">slugs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">GOLD</span><span class="p">)</span>
-<span class="n">answers</span> <span class="o">=</span> <span class="p">{</span><span class="n">s</span><span class="p">:</span> <span class="n">b</span><span class="o">.</span><span class="n">model_dump_json</span><span class="p">()</span> <span class="k">for</span> <span class="n">s</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">GOLD</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
-
-<span class="c1"># fault 1: invalid first answer for 28 Feb (CONFIRMED on a social-media source) -&gt; self-repair retry</span>
-<span class="n">bad</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">answers</span><span class="p">[</span><span class="n">slugs</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
-<span class="n">bad</span><span class="p">[</span><span class="s2">"events"</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">"confidence"</span><span class="p">]</span> <span class="o">=</span> <span class="mi">6</span>
-<span class="n">bad</span><span class="p">[</span><span class="s2">"events"</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">"sources"</span><span class="p">]</span> <span class="o">=</span> <span class="p">[{</span><span class="s2">"outlet"</span><span class="p">:</span> <span class="s2">"X/Twitter OSINT account"</span><span class="p">,</span> <span class="s2">"evidence"</span><span class="p">:</span> <span class="s2">"social_media"</span><span class="p">}]</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">FlakyReplay</span><span class="p">(</span><span class="n">pp</span><span class="o">.</span><span class="n">ReplayClient</span><span class="p">):</span>
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">answers</span><span class="p">,</span> <span class="n">first_bad</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">answers</span><span class="p">);</span> <span class="bp">self</span><span class="o">.</span><span class="n">first_bad</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">used</span> <span class="o">=</span> <span class="n">first_bad</span><span class="p">,</span> <span class="nb">set</span><span class="p">()</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">complete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">system</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">schema</span><span class="p">):</span>
-        <span class="n">slug</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"SLUG: "</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
-        <span class="k">if</span> <span class="n">slug</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">first_bad</span> <span class="ow">and</span> <span class="n">slug</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">used</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">used</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">slug</span><span class="p">);</span> <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">first_bad</span><span class="p">[</span><span class="n">slug</span><span class="p">])</span>
-        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">complete</span><span class="p">(</span><span class="n">system</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">schema</span><span class="p">)</span>
-
-<span class="c1"># fault 2: a hallucinated event for 2 Mar (quote not in the article) -&gt; dropped</span>
-<span class="n">mar2</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">answers</span><span class="p">[</span><span class="n">slugs</span><span class="p">[</span><span class="mi">2</span><span class="p">]])</span>
-<span class="n">mar2</span><span class="p">[</span><span class="s2">"events"</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"infrastructure_attack"</span><span class="p">,</span> <span class="s2">"summary"</span><span class="p">:</span> <span class="s2">"Kharg Island export terminal destroyed."</span><span class="p">,</span>
-                       <span class="s2">"initiator"</span><span class="p">:</span> <span class="s2">"israel"</span><span class="p">,</span> <span class="s2">"confidence"</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s2">"sources"</span><span class="p">:</span> <span class="p">[],</span> <span class="s2">"damage"</span><span class="p">:</span> <span class="s2">"destroyed"</span><span class="p">,</span>
-                       <span class="s2">"asset"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"Kharg Island"</span><span class="p">,</span> <span class="s2">"asset_type"</span><span class="p">:</span> <span class="s2">"export_terminal"</span><span class="p">},</span>
-                       <span class="s2">"evidence_quote"</span><span class="p">:</span> <span class="s2">"Israel destroyed the Kharg Island oil export terminal on March 2."</span><span class="p">})</span>
-<span class="n">answers</span><span class="p">[</span><span class="n">slugs</span><span class="p">[</span><span class="mi">2</span><span class="p">]]</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">mar2</span><span class="p">)</span>
-
-<span class="n">llm</span> <span class="o">=</span> <span class="n">FlakyReplay</span><span class="p">(</span><span class="n">answers</span><span class="p">,</span> <span class="n">first_bad</span><span class="o">=</span><span class="p">{</span><span class="n">slugs</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span> <span class="n">bad</span><span class="p">})</span>
-<span class="n">pipe</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">ExtractionPipeline</span><span class="p">(</span><span class="n">source</span><span class="o">=</span><span class="n">pp</span><span class="o">.</span><span class="n">InternetArchiveSource</span><span class="p">(),</span>
-                             <span class="n">extractor</span><span class="o">=</span><span class="n">pp</span><span class="o">.</span><span class="n">BriefExtractor</span><span class="p">(</span><span class="n">llm</span><span class="p">,</span> <span class="n">pp</span><span class="o">.</span><span class="n">PromptBuilder</span><span class="p">(</span><span class="n">few_shot</span><span class="o">=</span><span class="p">[</span><span class="n">GOLD</span><span class="p">[</span><span class="n">slugs</span><span class="p">[</span><span class="mi">1</span><span class="p">]]])),</span>
-                             <span class="n">repo</span><span class="o">=</span><span class="n">pp</span><span class="o">.</span><span class="n">JsonFileRepository</span><span class="p">())</span>
-<span class="n">results</span> <span class="o">=</span> <span class="n">pipe</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">slugs</span><span class="p">)</span>
-<span class="n">display</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">([{</span><span class="s2">"report"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">article</span><span class="o">.</span><span class="n">report_date</span><span class="si">:</span><span class="s2">%d %b</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">article</span><span class="o">.</span><span class="n">report_type</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
-                       <span class="s2">"words in article"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">article</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">split</span><span class="p">()),</span> <span class="s2">"attempts"</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">attempts</span><span class="p">,</span>
-                       <span class="s2">"validation errors fed back"</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">errors</span><span class="p">[</span><span class="mi">0</span><span class="p">][:</span><span class="mi">90</span><span class="p">]</span> <span class="o">+</span> <span class="s2">"…"</span> <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">errors</span> <span class="k">else</span> <span class="s2">""</span><span class="p">,</span>
-                       <span class="s2">"events kept"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">brief</span><span class="o">.</span><span class="n">events</span><span class="p">)</span> <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">brief</span> <span class="k">else</span> <span class="mi">0</span><span class="p">,</span>
-                       <span class="s2">"dropped (quote not in article)"</span><span class="p">:</span> <span class="s2">"; "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">dropped_events</span><span class="p">)}</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span><span class="p">])</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s2">"report"</span><span class="p">))</span>
-</pre></div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h2 id="Architecture">Architecture<a class="anchor-link" href="#Architecture">¶</a></h2><pre><code>ArticleSource    archive / direct / manual upload
+   ↓
+ISWParser        HTML → text
+   ↓
+BriefExtractor   PromptBuilder + LLMClient
+   ↓             invalid JSON → retry
+   ↓             quote not in article → drop
+BriefRepository  one JSON per report
+   ↓
+BriefAnalyzer    timeline · Hormuz state · diffs
+</code></pre>
+<h2 id="Schema">Schema<a class="anchor-link" href="#Schema">¶</a></h2><pre><code>ConflictEvent    date, actor, location,
+                 confidence, sources, quote
+ ├ Strike · MaritimeIncident
+ ├ InfrastructureAttack · LeadershipTargeted
+ └ Diplomacy · NegativeObservation
+DailyBrief       events + Hormuz status + trend
+                 → channel_scores, diff()
+</code></pre>
+<p>Enums: <code>InflationChannel</code> · <code>ChokepointStatus</code> · <code>Confidence</code> · <code>EvidenceType</code> · <code>Actor</code> · <code>AssetType</code></p>
 </div>
 </div>
 </div>
 </div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=3d6b72ff">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h2 id="OOP-principles">OOP principles<a class="anchor-link" href="#OOP-principles">¶</a></h2><table>
+<thead>
+<tr>
+<th>Principle</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Abstraction</td>
+<td><code>ArticleSource</code>, <code>LLMClient</code>, <code>BriefRepository</code> are abstract interfaces</td>
+</tr>
+<tr>
+<td>Encapsulation</td>
+<td>Validation lives in the models (e.g. "confirmed" needs hard evidence)</td>
+</tr>
+<tr>
+<td>Inheritance</td>
+<td>Six event types extend <code>ConflictEvent</code>; sources share <code>ArticleSource.get()</code></td>
+</tr>
+<tr>
+<td>Polymorphism</td>
+<td>Each event type scores itself; the brief just loops over events</td>
+</tr>
+<tr>
+<td>Composition</td>
+<td><code>ExtractionPipeline</code> = source + extractor + repository</td>
+</tr>
+<tr>
+<td>SOLID</td>
+<td>One job per class; new source or event type = new subclass; LLM injected (<code>ReplayClient</code> for tests)</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=442aaf26">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h2 id="Demo:-first-weeks-of-the-war">Demo: first weeks of the war<a class="anchor-link" href="#Demo:-first-weeks-of-the-war">¶</a></h2><p>Two injected faults: invalid answer (28 Feb), made-up event (2 Mar).</p>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noInput" id="cell-id=29515f9e">
 <div class="jp-Cell-outputWrapper">
 <div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
 </div>
 <div class="jp-OutputArea jp-Cell-outputArea">
 <div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output" data-mime-type="text/html" tabindex="0">
 <div>
 <style scoped="">
@@ -7944,61 +7643,47 @@ fed back, and the second answer passes.</li>
 <thead>
 <tr style="text-align: right;">
 <th></th>
-<th>words in article</th>
 <th>attempts</th>
-<th>validation errors fed back</th>
 <th>events kept</th>
-<th>dropped (quote not in article)</th>
+<th>dropped</th>
 </tr>
 <tr>
 <th>report</th>
 <th></th>
 <th></th>
 <th></th>
-<th></th>
-<th></th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <th>28 Feb special</th>
-<td>1512</td>
 <td>2</td>
-<td>events.0.strike: Value error, CONFIRMED requires imagery, footage, geolocation or an offic…</td>
 <td>2</td>
-<td></td>
+<td>—</td>
 </tr>
 <tr>
-<th>28 Feb evening_special</th>
-<td>4166</td>
+<th>28 Feb evening special</th>
 <td>1</td>
-<td></td>
 <td>1</td>
-<td></td>
+<td>—</td>
 </tr>
 <tr>
-<th>02 Mar evening_special</th>
-<td>5170</td>
+<th>02 Mar evening special</th>
 <td>1</td>
-<td></td>
 <td>3</td>
 <td>Kharg Island export terminal destroyed.</td>
 </tr>
 <tr>
-<th>04 Mar evening_special</th>
-<td>5560</td>
+<th>04 Mar evening special</th>
 <td>1</td>
-<td></td>
 <td>1</td>
-<td></td>
+<td>—</td>
 </tr>
 <tr>
-<th>16 Mar evening_special</th>
-<td>3603</td>
+<th>16 Mar evening special</th>
 <td>1</td>
-<td></td>
 <td>2</td>
-<td></td>
+<td>—</td>
 </tr>
 </tbody>
 </table>
@@ -8007,147 +7692,12 @@ fed back, and the second answer passes.</li>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=376ca7cd">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [4]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-<div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="n">an</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">BriefAnalyzer</span><span class="p">([</span><span class="n">r</span><span class="o">.</span><span class="n">brief</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span> <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">brief</span><span class="p">])</span>
-<span class="n">tl</span> <span class="o">=</span> <span class="n">an</span><span class="o">.</span><span class="n">timeline</span><span class="p">()</span>
-<span class="n">state</span> <span class="o">=</span> <span class="n">an</span><span class="o">.</span><span class="n">chokepoint_state</span><span class="p">()</span>
-<span class="n">display</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">state</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="s2">"Hormuz status (carried forward)"</span><span class="p">),</span> <span class="n">tl</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
-
-<span class="c1"># chart: flow (channel scores per report) and stock (Hormuz status ladder)</span>
-<span class="n">chan_cols</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">tl</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">c</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"events"</span><span class="p">,</span> <span class="s2">"trend"</span><span class="p">)]</span>
-<span class="n">palette</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"#d95926"</span><span class="p">,</span> <span class="s2">"#3987e5"</span><span class="p">,</span> <span class="s2">"#199e70"</span><span class="p">,</span> <span class="s2">"#c98500"</span><span class="p">,</span> <span class="s2">"#9085e9"</span><span class="p">,</span> <span class="s2">"#e66767"</span><span class="p">,</span> <span class="s2">"#d55181"</span><span class="p">,</span> <span class="s2">"#8a94a6"</span><span class="p">]</span>
-<span class="n">fig</span> <span class="o">=</span> <span class="n">make_subplots</span><span class="p">(</span><span class="n">rows</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">cols</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">shared_xaxes</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">row_heights</span><span class="o">=</span><span class="p">[</span><span class="mf">0.62</span><span class="p">,</span> <span class="mf">0.38</span><span class="p">],</span> <span class="n">vertical_spacing</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
-                    <span class="n">subplot_titles</span><span class="o">=</span><span class="p">(</span><span class="s2">"Confidence-weighted signal by inflation channel (news in each report)"</span><span class="p">,</span>
-                                    <span class="s2">"Strait of Hormuz status (carried forward)"</span><span class="p">))</span>
-<span class="k">for</span> <span class="n">c</span><span class="p">,</span> <span class="n">col</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">chan_cols</span><span class="p">,</span> <span class="n">palette</span><span class="p">):</span>
-    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span><span class="n">go</span><span class="o">.</span><span class="n">Bar</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">tl</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">tl</span><span class="p">[</span><span class="n">c</span><span class="p">],</span> <span class="n">name</span><span class="o">=</span><span class="n">c</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">"_"</span><span class="p">,</span> <span class="s2">" "</span><span class="p">),</span> <span class="n">marker_color</span><span class="o">=</span><span class="n">col</span><span class="p">,</span>
-                         <span class="n">hovertemplate</span><span class="o">=</span><span class="s2">"%</span><span class="si">{y:+.2f}</span><span class="s2">&lt;extra&gt;"</span> <span class="o">+</span> <span class="n">c</span> <span class="o">+</span> <span class="s2">"&lt;/extra&gt;"</span><span class="p">),</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-<span class="n">lvl</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">sc</span><span class="o">.</span><span class="n">ChokepointStatus</span><span class="p">[</span><span class="n">s</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
-<span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span><span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">state</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">lvl</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"lines+markers+text"</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="n">state</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">textposition</span><span class="o">=</span><span class="s2">"top center"</span><span class="p">,</span>
-                         <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s2">"#e6e9ef"</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="s2">"hv"</span><span class="p">),</span> <span class="n">showlegend</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                         <span class="n">textfont</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">"#c9d1dc"</span><span class="p">)),</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-<span class="n">lay</span> <span class="o">=</span> <span class="n">ch</span><span class="o">.</span><span class="n">base_layout</span><span class="p">(</span><span class="s2">""</span><span class="p">,</span> <span class="mi">620</span><span class="p">);</span> <span class="n">lay</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">"xaxis"</span><span class="p">);</span> <span class="n">lay</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">"yaxis"</span><span class="p">);</span> <span class="n">lay</span><span class="p">[</span><span class="s2">"barmode"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"relative"</span>
-<span class="n">lay</span><span class="p">[</span><span class="s2">"legend"</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">y</span><span class="o">=-</span><span class="mf">0.12</span><span class="p">,</span> <span class="n">yanchor</span><span class="o">=</span><span class="s2">"top"</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">xanchor</span><span class="o">=</span><span class="s2">"center"</span><span class="p">);</span> <span class="n">lay</span><span class="p">[</span><span class="s2">"hovermode"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"x unified"</span>
-<span class="n">fig</span><span class="o">.</span><span class="n">update_layout</span><span class="p">(</span><span class="o">**</span><span class="n">lay</span><span class="p">);</span> <span class="n">fig</span><span class="o">.</span><span class="n">update_xaxes</span><span class="p">(</span><span class="n">gridcolor</span><span class="o">=</span><span class="n">ch</span><span class="o">.</span><span class="n">GRID_COLOR</span><span class="p">);</span> <span class="n">fig</span><span class="o">.</span><span class="n">update_yaxes</span><span class="p">(</span><span class="n">gridcolor</span><span class="o">=</span><span class="n">ch</span><span class="o">.</span><span class="n">GRID_COLOR</span><span class="p">)</span>
-<span class="n">fig</span><span class="o">.</span><span class="n">update_yaxes</span><span class="p">(</span><span class="nb">range</span><span class="o">=</span><span class="p">[</span><span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">7</span><span class="p">],</span> <span class="n">tickvals</span><span class="o">=</span><span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">value</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sc</span><span class="o">.</span><span class="n">ChokepointStatus</span><span class="p">],</span>
-                 <span class="n">ticktext</span><span class="o">=</span><span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">"_"</span><span class="p">,</span> <span class="s2">" "</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sc</span><span class="o">.</span><span class="n">ChokepointStatus</span><span class="p">],</span> <span class="n">row</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-<span class="n">fig</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
-</pre></div>
-</div>
-</div>
-</div>
-</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noInput" id="cell-id=3b946210">
 <div class="jp-Cell-outputWrapper">
 <div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
 </div>
 <div class="jp-OutputArea jp-Cell-outputArea">
 <div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output" data-mime-type="text/html" tabindex="0">
-<div>
-<style scoped="">
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
-<table border="1" class="dataframe">
-<thead>
-<tr style="text-align: right;">
-<th></th>
-<th>Hormuz status (carried forward)</th>
-<th>events</th>
-<th>trend</th>
-<th>escalation_intensity</th>
-<th>geographic_spread</th>
-<th>regime_stability</th>
-<th>shipping_chokepoint</th>
-<th>energy_supply</th>
-<th>de_escalation</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<th>28 Feb special</th>
-<td>OPEN</td>
-<td>2</td>
-<td>escalating</td>
-<td>1.33</td>
-<td>1.33</td>
-<td>1.33</td>
-<td>0.00</td>
-<td>0.00</td>
-<td>0.0</td>
-</tr>
-<tr>
-<th>28 Feb evening special</th>
-<td>THREATENED</td>
-<td>1</td>
-<td>escalating</td>
-<td>0.00</td>
-<td>0.00</td>
-<td>0.00</td>
-<td>0.67</td>
-<td>0.00</td>
-<td>0.0</td>
-</tr>
-<tr>
-<th>02 Mar evening special</th>
-<td>CONFIRMED_ATTACKS</td>
-<td>3</td>
-<td>escalating</td>
-<td>0.00</td>
-<td>7.67</td>
-<td>0.00</td>
-<td>1.67</td>
-<td>7.67</td>
-<td>0.0</td>
-</tr>
-<tr>
-<th>04 Mar evening special</th>
-<td>CONFIRMED_ATTACKS</td>
-<td>1</td>
-<td>stable</td>
-<td>0.00</td>
-<td>0.00</td>
-<td>0.00</td>
-<td>3.33</td>
-<td>0.00</td>
-<td>0.0</td>
-</tr>
-<tr>
-<th>16 Mar evening special</th>
-<td>MANAGED_PASSAGE</td>
-<td>2</td>
-<td>de_escalating</td>
-<td>0.00</td>
-<td>0.00</td>
-<td>0.00</td>
-<td>0.00</td>
-<td>0.00</td>
-<td>-1.5</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output" data-mime-type="text/html" tabindex="0">
 <script type="text/javascript">
         window.PlotlyConfig = {MathJaxConfig: 'local'};
@@ -8157,12 +7707,11 @@ fed back, and the second answer passes.</li>
 </div>
 </div>
 <div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output" data-mime-type="text/html" tabindex="0">
 <div> <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_SVG"></script><script type="text/javascript">if (window.MathJax && window.MathJax.Hub && window.MathJax.Hub.Config) {window.MathJax.Hub.Config({SVG: {font: "STIX-Web"}});}</script> <script type="text/javascript">window.PlotlyConfig = {MathJaxConfig: 'local'};</script>
-<script charset="utf-8" src="https://cdn.plot.ly/plotly-3.0.1.min.js"></script> <div class="plotly-graph-div" id="cfa84c34-6cc3-4ecc-bd04-01e4b79812ee" style="height:620px; width:100%;"></div> <script type="text/javascript">                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("cfa84c34-6cc3-4ecc-bd04-01e4b79812ee")) {                    Plotly.newPlot(                        "cfa84c34-6cc3-4ecc-bd04-01e4b79812ee",                        [{"hovertemplate":"%{y:+.2f}\u003cextra\u003eescalation_intensity\u003c\u002fextra\u003e","marker":{"color":"#d95926"},"name":"escalation intensity","x":["28 Feb special","28 Feb evening special","02 Mar evening special","04 Mar evening special","16 Mar evening special"],"y":{"dtype":"f8","bdata":"SOF6FK5H9T8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="},"type":"bar","xaxis":"x","yaxis":"y"},{"hovertemplate":"%{y:+.2f}\u003cextra\u003egeographic_spread\u003c\u002fextra\u003e","marker":{"color":"#3987e5"},"name":"geographic spread","x":["28 Feb special","28 Feb evening special","02 Mar evening special","04 Mar evening special","16 Mar evening special"],"y":{"dtype":"f8","bdata":"SOF6FK5H9T8AAAAAAAAAAK5H4XoUrh5AAAAAAAAAAAAAAAAAAAAAAA=="},"type":"bar","xaxis":"x","yaxis":"y"},{"hovertemplate":"%{y:+.2f}\u003cextra\u003eregime_stability\u003c\u002fextra\u003e","marker":{"color":"#199e70"},"name":"regime stability","x":["28 Feb special","28 Feb evening special","02 Mar evening special","04 Mar evening special","16 Mar evening special"],"y":{"dtype":"f8","bdata":"SOF6FK5H9T8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="},"type":"bar","xaxis":"x","yaxis":"y"},{"hovertemplate":"%{y:+.2f}\u003cextra\u003eshipping_chokepoint\u003c\u002fextra\u003e","marker":{"color":"#c98500"},"name":"shipping chokepoint","x":["28 Feb special","28 Feb evening special","02 Mar evening special","04 Mar evening special","16 Mar evening special"],"y":{"dtype":"f8","bdata":"AAAAAAAAAABxPQrXo3DlP7gehetRuPo\u002fpHA9CtejCkAAAAAAAAAAAA=="},"type":"bar","xaxis":"x","yaxis":"y"},{"hovertemplate":"%{y:+.2f}\u003cextra\u003eenergy_supply\u003c\u002fextra\u003e","marker":{"color":"#9085e9"},"name":"energy supply","x":["28 Feb special","28 Feb evening special","02 Mar evening special","04 Mar evening special","16 Mar evening special"],"y":{"dtype":"f8","bdata":"AAAAAAAAAAAAAAAAAAAAAK5H4XoUrh5AAAAAAAAAAAAAAAAAAAAAAA=="},"type":"bar","xaxis":"x","yaxis":"y"},{"hovertemplate":"%{y:+.2f}\u003cextra\u003ede_escalation\u003c\u002fextra\u003e","marker":{"color":"#e66767"},"name":"de escalation","x":["28 Feb special","28 Feb evening special","02 Mar evening special","04 Mar evening special","16 Mar evening special"],"y":{"dtype":"f8","bdata":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD4vw=="},"type":"bar","xaxis":"x","yaxis":"y"},{"line":{"color":"#e6e9ef","shape":"hv"},"mode":"lines+markers+text","showlegend":false,"text":["OPEN","THREATENED","CONFIRMED_ATTACKS","CONFIRMED_ATTACKS","MANAGED_PASSAGE"],"textfont":{"color":"#c9d1dc","size":10},"textposition":"top center","x":["28 Feb special","28 Feb evening special","02 Mar evening special","04 Mar evening special","16 Mar evening special"],"y":{"dtype":"i1","bdata":"AAMFBQE="},"type":"scatter","xaxis":"x2","yaxis":"y2"}],                        {"template":{"data":{"barpolar":[{"marker":{"line":{"color":"rgb(17,17,17)","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"bar":[{"error_x":{"color":"#f2f5fa"},"error_y":{"color":"#f2f5fa"},"marker":{"line":{"color":"rgb(17,17,17)","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"carpet":[{"aaxis":{"endlinecolor":"#A2B1C6","gridcolor":"#506784","linecolor":"#506784","minorgridcolor":"#506784","startlinecolor":"#A2B1C6"},"baxis":{"endlinecolor":"#A2B1C6","gridcolor":"#506784","linecolor":"#506784","minorgridcolor":"#506784","startlinecolor":"#A2B1C6"},"type":"carpet"}],"choropleth":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"choropleth"}],"contourcarpet":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"contourcarpet"}],"contour":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"contour"}],"heatmap":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"heatmap"}],"histogram2dcontour":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"histogram2dcontour"}],"histogram2d":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"histogram2d"}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"mesh3d":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"mesh3d"}],"parcoords":[{"line":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"parcoords"}],"pie":[{"automargin":true,"type":"pie"}],"scatter3d":[{"line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatter3d"}],"scattercarpet":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattercarpet"}],"scattergeo":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattergeo"}],"scattergl":[{"marker":{"line":{"color":"#283442"}},"type":"scattergl"}],"scattermapbox":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattermapbox"}],"scattermap":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattermap"}],"scatterpolargl":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterpolargl"}],"scatterpolar":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterpolar"}],"scatter":[{"marker":{"line":{"color":"#283442"}},"type":"scatter"}],"scatterternary":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterternary"}],"surface":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"surface"}],"table":[{"cells":{"fill":{"color":"#506784"},"line":{"color":"rgb(17,17,17)"}},"header":{"fill":{"color":"#2a3f5f"},"line":{"color":"rgb(17,17,17)"}},"type":"table"}]},"layout":{"annotationdefaults":{"arrowcolor":"#f2f5fa","arrowhead":0,"arrowwidth":1},"autotypenumbers":"strict","coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]],"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]},"colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#f2f5fa"},"geo":{"bgcolor":"rgb(17,17,17)","lakecolor":"rgb(17,17,17)","landcolor":"rgb(17,17,17)","showlakes":true,"showland":true,"subunitcolor":"#506784"},"hoverlabel":{"align":"left"},"hovermode":"closest","mapbox":{"style":"dark"},"paper_bgcolor":"rgb(17,17,17)","plot_bgcolor":"rgb(17,17,17)","polar":{"angularaxis":{"gridcolor":"#506784","linecolor":"#506784","ticks":""},"bgcolor":"rgb(17,17,17)","radialaxis":{"gridcolor":"#506784","linecolor":"#506784","ticks":""}},"scene":{"xaxis":{"backgroundcolor":"rgb(17,17,17)","gridcolor":"#506784","gridwidth":2,"linecolor":"#506784","showbackground":true,"ticks":"","zerolinecolor":"#C8D4E3"},"yaxis":{"backgroundcolor":"rgb(17,17,17)","gridcolor":"#506784","gridwidth":2,"linecolor":"#506784","showbackground":true,"ticks":"","zerolinecolor":"#C8D4E3"},"zaxis":{"backgroundcolor":"rgb(17,17,17)","gridcolor":"#506784","gridwidth":2,"linecolor":"#506784","showbackground":true,"ticks":"","zerolinecolor":"#C8D4E3"}},"shapedefaults":{"line":{"color":"#f2f5fa"}},"sliderdefaults":{"bgcolor":"#C8D4E3","bordercolor":"rgb(17,17,17)","borderwidth":1,"tickwidth":0},"ternary":{"aaxis":{"gridcolor":"#506784","linecolor":"#506784","ticks":""},"baxis":{"gridcolor":"#506784","linecolor":"#506784","ticks":""},"bgcolor":"rgb(17,17,17)","caxis":{"gridcolor":"#506784","linecolor":"#506784","ticks":""}},"title":{"x":0.05},"updatemenudefaults":{"bgcolor":"#506784","borderwidth":0},"xaxis":{"automargin":true,"gridcolor":"#283442","linecolor":"#506784","ticks":"","title":{"standoff":15},"zerolinecolor":"#283442","zerolinewidth":2},"yaxis":{"automargin":true,"gridcolor":"#283442","linecolor":"#506784","ticks":"","title":{"standoff":15},"zerolinecolor":"#283442","zerolinewidth":2}}},"xaxis":{"anchor":"y","domain":[0.0,1.0],"matches":"x2","showticklabels":false,"gridcolor":"#2a2f3e"},"yaxis":{"anchor":"x","domain":[0.44200000000000006,1.0],"gridcolor":"#2a2f3e"},"xaxis2":{"anchor":"y2","domain":[0.0,1.0],"gridcolor":"#2a2f3e"},"yaxis2":{"anchor":"x2","domain":[0.0,0.342],"gridcolor":"#2a2f3e","range":[-0.5,7],"tickvals":[0,1,2,3,4,5,6],"ticktext":["open","managed passage","lull","threatened","suspected attacks","confirmed attacks","closed"]},"annotations":[{"font":{"size":16},"showarrow":false,"text":"Confidence-weighted signal by inflation channel (news in each report)","x":0.5,"xanchor":"center","xref":"paper","y":1.0,"yanchor":"bottom","yref":"paper"},{"font":{"size":16},"showarrow":false,"text":"Strait of Hormuz status (carried forward)","x":0.5,"xanchor":"center","xref":"paper","y":0.342,"yanchor":"bottom","yref":"paper"}],"title":{"font":{"size":15},"text":"","x":0.01,"xanchor":"left"},"margin":{"l":55,"r":30,"t":60,"b":40},"legend":{"font":{"size":11},"orientation":"h","y":-0.12,"yanchor":"top","x":0.5,"xanchor":"center"},"paper_bgcolor":"#0e1117","plot_bgcolor":"#161b26","height":620,"hovermode":"x unified","barmode":"relative"},                        {"responsive": true}                    ).then(function(){
+<script charset="utf-8" src="https://cdn.plot.ly/plotly-3.0.1.min.js"></script> <div class="plotly-graph-div" id="2b3520c8-de82-473d-acfa-0f016f50cebf" style="height:600px; width:100%;"></div> <script type="text/javascript">                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("2b3520c8-de82-473d-acfa-0f016f50cebf")) {                    Plotly.newPlot(                        "2b3520c8-de82-473d-acfa-0f016f50cebf",                        [{"hovertemplate":"%{y:+.2f}\u003cextra\u003eescalation_intensity\u003c\u002fextra\u003e","marker":{"color":"#d95926"},"name":"escalation intensity","x":["28 Feb special","28 Feb evening special","02 Mar evening special","04 Mar evening special","16 Mar evening special"],"y":{"dtype":"f8","bdata":"SOF6FK5H9T8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="},"type":"bar","xaxis":"x","yaxis":"y"},{"hovertemplate":"%{y:+.2f}\u003cextra\u003egeographic_spread\u003c\u002fextra\u003e","marker":{"color":"#3987e5"},"name":"geographic spread","x":["28 Feb special","28 Feb evening special","02 Mar evening special","04 Mar evening special","16 Mar evening special"],"y":{"dtype":"f8","bdata":"SOF6FK5H9T8AAAAAAAAAAK5H4XoUrh5AAAAAAAAAAAAAAAAAAAAAAA=="},"type":"bar","xaxis":"x","yaxis":"y"},{"hovertemplate":"%{y:+.2f}\u003cextra\u003eregime_stability\u003c\u002fextra\u003e","marker":{"color":"#199e70"},"name":"regime stability","x":["28 Feb special","28 Feb evening special","02 Mar evening special","04 Mar evening special","16 Mar evening special"],"y":{"dtype":"f8","bdata":"SOF6FK5H9T8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="},"type":"bar","xaxis":"x","yaxis":"y"},{"hovertemplate":"%{y:+.2f}\u003cextra\u003eshipping_chokepoint\u003c\u002fextra\u003e","marker":{"color":"#c98500"},"name":"shipping chokepoint","x":["28 Feb special","28 Feb evening special","02 Mar evening special","04 Mar evening special","16 Mar evening special"],"y":{"dtype":"f8","bdata":"AAAAAAAAAABxPQrXo3DlP7gehetRuPo\u002fpHA9CtejCkAAAAAAAAAAAA=="},"type":"bar","xaxis":"x","yaxis":"y"},{"hovertemplate":"%{y:+.2f}\u003cextra\u003eenergy_supply\u003c\u002fextra\u003e","marker":{"color":"#9085e9"},"name":"energy supply","x":["28 Feb special","28 Feb evening special","02 Mar evening special","04 Mar evening special","16 Mar evening special"],"y":{"dtype":"f8","bdata":"AAAAAAAAAAAAAAAAAAAAAK5H4XoUrh5AAAAAAAAAAAAAAAAAAAAAAA=="},"type":"bar","xaxis":"x","yaxis":"y"},{"hovertemplate":"%{y:+.2f}\u003cextra\u003ede_escalation\u003c\u002fextra\u003e","marker":{"color":"#e66767"},"name":"de escalation","x":["28 Feb special","28 Feb evening special","02 Mar evening special","04 Mar evening special","16 Mar evening special"],"y":{"dtype":"f8","bdata":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD4vw=="},"type":"bar","xaxis":"x","yaxis":"y"},{"line":{"color":"#e6e9ef","shape":"hv"},"mode":"lines+markers+text","showlegend":false,"text":["OPEN","THREATENED","CONFIRMED_ATTACKS","CONFIRMED_ATTACKS","MANAGED_PASSAGE"],"textfont":{"color":"#c9d1dc","size":10},"textposition":"top center","x":["28 Feb special","28 Feb evening special","02 Mar evening special","04 Mar evening special","16 Mar evening special"],"y":{"dtype":"i1","bdata":"AAMFBQE="},"type":"scatter","xaxis":"x2","yaxis":"y2"}],                        {"template":{"data":{"barpolar":[{"marker":{"line":{"color":"rgb(17,17,17)","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"bar":[{"error_x":{"color":"#f2f5fa"},"error_y":{"color":"#f2f5fa"},"marker":{"line":{"color":"rgb(17,17,17)","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"carpet":[{"aaxis":{"endlinecolor":"#A2B1C6","gridcolor":"#506784","linecolor":"#506784","minorgridcolor":"#506784","startlinecolor":"#A2B1C6"},"baxis":{"endlinecolor":"#A2B1C6","gridcolor":"#506784","linecolor":"#506784","minorgridcolor":"#506784","startlinecolor":"#A2B1C6"},"type":"carpet"}],"choropleth":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"choropleth"}],"contourcarpet":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"contourcarpet"}],"contour":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"contour"}],"heatmap":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"heatmap"}],"histogram2dcontour":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"histogram2dcontour"}],"histogram2d":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"histogram2d"}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"mesh3d":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"mesh3d"}],"parcoords":[{"line":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"parcoords"}],"pie":[{"automargin":true,"type":"pie"}],"scatter3d":[{"line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatter3d"}],"scattercarpet":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattercarpet"}],"scattergeo":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattergeo"}],"scattergl":[{"marker":{"line":{"color":"#283442"}},"type":"scattergl"}],"scattermapbox":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattermapbox"}],"scattermap":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattermap"}],"scatterpolargl":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterpolargl"}],"scatterpolar":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterpolar"}],"scatter":[{"marker":{"line":{"color":"#283442"}},"type":"scatter"}],"scatterternary":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterternary"}],"surface":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"surface"}],"table":[{"cells":{"fill":{"color":"#506784"},"line":{"color":"rgb(17,17,17)"}},"header":{"fill":{"color":"#2a3f5f"},"line":{"color":"rgb(17,17,17)"}},"type":"table"}]},"layout":{"annotationdefaults":{"arrowcolor":"#f2f5fa","arrowhead":0,"arrowwidth":1},"autotypenumbers":"strict","coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]],"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]},"colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#f2f5fa"},"geo":{"bgcolor":"rgb(17,17,17)","lakecolor":"rgb(17,17,17)","landcolor":"rgb(17,17,17)","showlakes":true,"showland":true,"subunitcolor":"#506784"},"hoverlabel":{"align":"left"},"hovermode":"closest","mapbox":{"style":"dark"},"paper_bgcolor":"rgb(17,17,17)","plot_bgcolor":"rgb(17,17,17)","polar":{"angularaxis":{"gridcolor":"#506784","linecolor":"#506784","ticks":""},"bgcolor":"rgb(17,17,17)","radialaxis":{"gridcolor":"#506784","linecolor":"#506784","ticks":""}},"scene":{"xaxis":{"backgroundcolor":"rgb(17,17,17)","gridcolor":"#506784","gridwidth":2,"linecolor":"#506784","showbackground":true,"ticks":"","zerolinecolor":"#C8D4E3"},"yaxis":{"backgroundcolor":"rgb(17,17,17)","gridcolor":"#506784","gridwidth":2,"linecolor":"#506784","showbackground":true,"ticks":"","zerolinecolor":"#C8D4E3"},"zaxis":{"backgroundcolor":"rgb(17,17,17)","gridcolor":"#506784","gridwidth":2,"linecolor":"#506784","showbackground":true,"ticks":"","zerolinecolor":"#C8D4E3"}},"shapedefaults":{"line":{"color":"#f2f5fa"}},"sliderdefaults":{"bgcolor":"#C8D4E3","bordercolor":"rgb(17,17,17)","borderwidth":1,"tickwidth":0},"ternary":{"aaxis":{"gridcolor":"#506784","linecolor":"#506784","ticks":""},"baxis":{"gridcolor":"#506784","linecolor":"#506784","ticks":""},"bgcolor":"rgb(17,17,17)","caxis":{"gridcolor":"#506784","linecolor":"#506784","ticks":""}},"title":{"x":0.05},"updatemenudefaults":{"bgcolor":"#506784","borderwidth":0},"xaxis":{"automargin":true,"gridcolor":"#283442","linecolor":"#506784","ticks":"","title":{"standoff":15},"zerolinecolor":"#283442","zerolinewidth":2},"yaxis":{"automargin":true,"gridcolor":"#283442","linecolor":"#506784","ticks":"","title":{"standoff":15},"zerolinecolor":"#283442","zerolinewidth":2}}},"xaxis":{"anchor":"y","domain":[0.0,1.0],"matches":"x2","showticklabels":false,"gridcolor":"#2a2f3e"},"yaxis":{"anchor":"x","domain":[0.44200000000000006,1.0],"gridcolor":"#2a2f3e"},"xaxis2":{"anchor":"y2","domain":[0.0,1.0],"gridcolor":"#2a2f3e"},"yaxis2":{"anchor":"x2","domain":[0.0,0.342],"gridcolor":"#2a2f3e","range":[-0.5,7],"tickvals":[0,1,2,3,4,5,6],"ticktext":["open","managed passage","lull","threatened","suspected attacks","confirmed attacks","closed"]},"annotations":[{"font":{"size":16},"showarrow":false,"text":"Signal by inflation channel (news in each report)","x":0.5,"xanchor":"center","xref":"paper","y":1.0,"yanchor":"bottom","yref":"paper"},{"font":{"size":16},"showarrow":false,"text":"Strait of Hormuz status","x":0.5,"xanchor":"center","xref":"paper","y":0.342,"yanchor":"bottom","yref":"paper"}],"title":{"font":{"size":15},"text":"","x":0.01,"xanchor":"left"},"margin":{"l":55,"r":30,"t":60,"b":40},"legend":{"font":{"size":11},"orientation":"h","y":-0.12,"yanchor":"top","x":0.5,"xanchor":"center"},"paper_bgcolor":"#0e1117","plot_bgcolor":"#161b26","height":600,"hovermode":"x unified","barmode":"relative"},                        {"responsive": true}                    ).then(function(){
                             
-var gd = document.getElementById('cfa84c34-6cc3-4ecc-bd04-01e4b79812ee');
+var gd = document.getElementById('2b3520c8-de82-473d-acfa-0f016f50cebf');
 var x = new MutationObserver(function (mutations, observer) {{
         var display = window.getComputedStyle(gd).display;
         if (!display || display === 'none') {{
@@ -8189,190 +7738,36 @@ if (outputEl) {{
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=be1906e1">
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=5295d23f">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [5]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-<div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
-<span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">an</span><span class="o">.</span><span class="n">diffs</span><span class="p">():</span>
-    <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">"from → to"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">d</span><span class="o">.</span><span class="n">from_date</span><span class="si">:</span><span class="s2">%d %b</span><span class="si">}</span><span class="s2"> → </span><span class="si">{</span><span class="n">d</span><span class="o">.</span><span class="n">to_date</span><span class="si">:</span><span class="s2">%d %b</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
-                 <span class="s2">"chokepoint change"</span><span class="p">:</span> <span class="s2">", "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">k</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">a</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> → </span><span class="si">{</span><span class="n">b</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">"</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span> <span class="ow">in</span> <span class="n">d</span><span class="o">.</span><span class="n">chokepoint_changes</span><span class="o">.</span><span class="n">items</span><span class="p">())</span> <span class="ow">or</span> <span class="s2">"—"</span><span class="p">,</span>
-                 <span class="s2">"biggest channel moves"</span><span class="p">:</span> <span class="s2">", "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">v</span><span class="si">:</span><span class="s2">+.1f</span><span class="si">}</span><span class="s2">"</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">channel_delta</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">kv</span><span class="p">:</span> <span class="o">-</span><span class="nb">abs</span><span class="p">(</span><span class="n">kv</span><span class="p">[</span><span class="mi">1</span><span class="p">]))[:</span><span class="mi">3</span><span class="p">]</span> <span class="k">if</span> <span class="n">v</span><span class="p">),</span>
-                 <span class="s2">"new 'first' events (only if the article says so)"</span><span class="p">:</span> <span class="s2">"; "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">new_firsts</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">"—"</span><span class="p">})</span>
-<span class="n">display</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s2">"from → to"</span><span class="p">))</span>
-</pre></div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<p><strong>What changed:</strong> 28 Feb Hormuz threatened → 2 Mar Qatar LNG halt, attacks confirmed → 16 Mar safe passage.</p>
 </div>
 </div>
 </div>
-</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noInput" id="cell-id=cf9d82fc">
 <div class="jp-Cell-outputWrapper">
 <div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
 </div>
 <div class="jp-OutputArea jp-Cell-outputArea">
 <div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output" data-mime-type="text/html" tabindex="0">
-<div>
-<style scoped="">
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
-<table border="1" class="dataframe">
-<thead>
-<tr style="text-align: right;">
-<th></th>
-<th>chokepoint change</th>
-<th>biggest channel moves</th>
-<th>new 'first' events (only if the article says so)</th>
-</tr>
-<tr>
-<th>from → to</th>
-<th></th>
-<th></th>
-<th></th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<th>28 Feb → 28 Feb</th>
-<td>strait_of_hormuz: OPEN → THREATENED</td>
-<td>regime_stability -1.3, geographic_spread -1.3, escalation_intensity -1.3</td>
-<td>—</td>
-</tr>
-<tr>
-<th>28 Feb → 02 Mar</th>
-<td>strait_of_hormuz: THREATENED → CONFIRMED_ATTACKS</td>
-<td>geographic_spread +7.7, energy_supply +7.7, shipping_chokepoint +1.0</td>
-<td>—</td>
-</tr>
-<tr>
-<th>02 Mar → 04 Mar</th>
-<td>—</td>
-<td>energy_supply -7.7, geographic_spread -7.7, shipping_chokepoint +1.7</td>
-<td>—</td>
-</tr>
-<tr>
-<th>04 Mar → 16 Mar</th>
-<td>strait_of_hormuz: CONFIRMED_ATTACKS → MANAGED_PASSAGE</td>
-<td>shipping_chokepoint -3.3, de_escalation -1.5</td>
-<td>—</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=b3cbcf60">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<p><strong>How the extracted information changed at the start of the conflict</strong></p>
-<ul>
-<li><strong>28 Feb (morning):</strong> the strike campaign and Iran's retaliation against <strong>US bases in six regional states</strong>
-(Bahrain, Qatar, UAE, Kuwait, Saudi Arabia, Jordan) dominate. The signal is escalation and geographic spread, plus
-regime-stability risk from decapitation strikes.</li>
-<li><strong>28 Feb (evening):</strong> Hormuz enters the record as <strong>threatened</strong>. The IRGC warns ships ("no ship is allowed to
-pass"), but ISW has <em>not</em> observed attacks. Shipping risk is flagged, at low confidence.</li>
-<li><strong>2 Mar:</strong> the inflation-relevant step change. <strong>Qatar halts all LNG production</strong> (≈20% of global supply) after
-drone attacks on Ras Laffan, Aramco shuts <strong>Ras Tanura</strong>, and a tanker is reportedly hit in Bahrain. Hormuz moves to
-<strong>confirmed attacks</strong>, and the energy-supply and Gulf-spread channels jump.</li>
-<li><strong>4 Mar:</strong> fewer new energy facts, but shipping risk stays high: UKMTO reports five incidents, "likely Iranian
-attacks". The status is unchanged, so the <em>stock</em> of risk is still high even though the <em>flow</em> of news fell.</li>
-<li><strong>16 Mar:</strong> "has not attacked any vessels … since March 12" and <strong>safe passage</strong> for some oil tankers. Hormuz
-steps down to <strong>managed passage</strong> and the signal turns to de-escalation.</li>
-</ul>
-<p>That sequence (threat → energy-infrastructure shock → sustained shipping risk → managed passage) is what you'd want
-to line up against oil and LNG prices and against Truflation's energy component from Q3, which rose about 14% YoY.</p>
-<p><strong>Reading the scores:</strong> channel scores measure <em>news flow</em> in each report. The chokepoint status carries forward
-and measures the <em>state</em>. Both are needed: a quiet day isn't a safe day.</p>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=708aee19">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<hr/>
-<h2 id="7.-Optional:-live-LLM-run-(OpenRouter-free-models)">7. Optional: live LLM run (OpenRouter free models)<a class="anchor-link" href="#7.-Optional:-live-LLM-run-(OpenRouter-free-models)">¶</a></h2><p>The same pipeline with <code>OpenRouterClient</code> instead of the replay client, scored against the gold labels. It runs
-only if <code>OPENROUTER_API_KEY</code> is set (a free key from openrouter.ai). Not graded.</p>
-</div>
-</div>
-</div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=7e22dd17">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [6]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-<div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">"OPENROUTER_API_KEY"</span><span class="p">):</span>
-    <span class="n">llm</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">OpenRouterClient</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">"OPENROUTER_MODEL"</span><span class="p">,</span> <span class="s2">"meta-llama/llama-3.3-70b-instruct:free"</span><span class="p">))</span>
-    <span class="n">live</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">ExtractionPipeline</span><span class="p">(</span><span class="n">pp</span><span class="o">.</span><span class="n">InternetArchiveSource</span><span class="p">(),</span> <span class="n">pp</span><span class="o">.</span><span class="n">BriefExtractor</span><span class="p">(</span><span class="n">llm</span><span class="p">,</span> <span class="n">pp</span><span class="o">.</span><span class="n">PromptBuilder</span><span class="p">(</span><span class="n">few_shot</span><span class="o">=</span><span class="p">[</span><span class="n">GOLD</span><span class="p">[</span><span class="n">slugs</span><span class="p">[</span><span class="mi">1</span><span class="p">]]])),</span>
-                                 <span class="n">pp</span><span class="o">.</span><span class="n">JsonFileRepository</span><span class="p">())</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">slugs</span><span class="p">)</span>
-    <span class="n">display</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">article</span><span class="o">.</span><span class="n">report_date</span><span class="si">:</span><span class="s2">%d %b</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">article</span><span class="o">.</span><span class="n">report_type</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">"</span><span class="p">:</span>
-                          <span class="p">(</span><span class="n">pp</span><span class="o">.</span><span class="n">Evaluator</span><span class="o">.</span><span class="n">score</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">brief</span><span class="p">,</span> <span class="n">GOLD</span><span class="p">[</span><span class="n">r</span><span class="o">.</span><span class="n">article</span><span class="o">.</span><span class="n">slug</span><span class="p">])</span> <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">brief</span> <span class="k">else</span> <span class="p">{</span><span class="s2">"failed"</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">errors</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][:</span><span class="mi">120</span><span class="p">]})</span>
-                          <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">live</span><span class="p">})</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
-<span class="k">else</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">"OPENROUTER_API_KEY not set - skipping the live run. The replay demo above exercises the same code path."</span><span class="p">)</span>
-</pre></div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell-outputWrapper">
-<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
-</div>
-<div class="jp-OutputArea jp-Cell-outputArea">
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>OPENROUTER_API_KEY not set - skipping the live run. The replay demo above exercises the same code path.
+<pre>No OPENROUTER_API_KEY - skipped.
 </pre>
 </div>
 </div>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=2e6b89fe">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=a8371b24">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<hr/>
-<h2 id="8.-Limitations-and-next-steps">8. Limitations and next steps<a class="anchor-link" href="#8.-Limitations-and-next-steps">¶</a></h2><ul>
-<li><strong>Access.</strong> ISW blocks scripted access; the Internet Archive lags by days and doesn't have every report. For
-production I'd ask ISW for a feed or licence, or ingest their email briefing.</li>
-<li><strong>LLM variance.</strong> Free models differ in how well they follow a schema. The design limits the damage (schema
-validation, self-repair retries, verbatim-quote checks, temperature 0), and <code>Evaluator</code> measures it against gold
-labels. A larger gold set (20–30 reports) would be the next step.</li>
-<li><strong>Scoring is a heuristic.</strong> Severity and weights are transparent rules, not a calibrated model. The next step is
-to regress Q3's energy-component surprises and oil/LNG price moves on these channel scores to calibrate them.</li>
-<li><strong>Long reports.</strong> Reports run to ~5,500 words, within context limits for current models. For longer inputs, split
-by section and merge the briefs, which works because events are independent and chokepoints are keyed.</li>
-</ul>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h2 id="Limitations">Limitations<a class="anchor-link" href="#Limitations">¶</a></h2><p>ISW blocks scripts · scores not yet calibrated · live LLM run needs <code>OPENROUTER_API_KEY</code>.</p>
 </div>
 </div>
 </div>

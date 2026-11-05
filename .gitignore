@@ -12,3 +12,7 @@ __pycache__/
 
 # ISW article copies (copyright) - fetched at runtime
 Q4/data/raw/
+
+# local submission copy
+Algebris_Submission/
+Algebris_Submission.zip

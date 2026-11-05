@@ -32,43 +32,55 @@ GRAPH_CONFIG = {"displaylogo": False, "modeBarButtonsToRemove": ["lasso2d", "sel
 # --------------------------------------------------------------------------------------------
 # Data
 # --------------------------------------------------------------------------------------------
-def load_data(force_refresh: bool = False) -> pl.PipelineResult:
-    """Use the stored pipeline output; run the pipeline if there is none, it is >24h old, or on demand."""
-    if not force_refresh:
-        try:
-            res = pl.load_cached()
-            age = datetime.now(timezone.utc) - datetime.fromisoformat(res.meta["run_at_utc"])
-            if age.total_seconds() < 24 * 3600:
-                return res
-            log.info("cached data is %s old - refreshing", age)
-        except Exception as e:
-            log.info("no usable cache (%s) - running pipeline", e)
-    return pl.run_pipeline()
-
-
-DATA = {"res": load_data()}
-_LOCK = threading.Lock()
-_LAST_ATTEMPT = {"t": 0.0}
 MAX_AGE_H, RETRY_AFTER_S = 24, 3600
+DATA = {"res": None, "version": 0}
+_STATE = {"running": False, "last_attempt": 0.0, "error": None}
+_LOCK = threading.Lock()
+
+
+def _age_h(res) -> float:
+    return (datetime.now(timezone.utc) - datetime.fromisoformat(res.meta["run_at_utc"])).total_seconds() / 3600
+
+
+def _refresh_worker():
+    try:
+        DATA["res"] = pl.run_pipeline()
+        DATA["version"] += 1
+        _STATE["error"] = None
+        log.info("background refresh done (version %d)", DATA["version"])
+    except Exception as e:
+        _STATE["error"] = str(e)
+        log.exception("background refresh failed - serving the last good data")
+    finally:
+        _STATE["running"] = False
+
+
+def start_refresh(force: bool = False) -> bool:
+    """Run the pipeline in a background thread - never inside startup or a page request, so a slow or
+    blocked data source can't stop the dashboard from loading. One refresh at a time; after a failure,
+    automatic retries wait an hour (the Refresh button can always force one)."""
+    with _LOCK:
+        if _STATE["running"] or (not force and time.time() - _STATE["last_attempt"] < RETRY_AFTER_S):
+            return False
+        _STATE.update(running=True, last_attempt=time.time())
+    threading.Thread(target=_refresh_worker, daemon=True).start()
+    return True
 
 
 def current() -> pl.PipelineResult:
-    """Data for this request. A long-running (hosted) app re-runs the pipeline itself once the stored data
-    is more than 24h old - one refresh at a time, and after a failure it waits an hour before retrying."""
-    res = DATA["res"]
-    age_h = (datetime.now(timezone.utc) - datetime.fromisoformat(res.meta["run_at_utc"])).total_seconds() / 3600
-    if age_h < MAX_AGE_H or time.time() - _LAST_ATTEMPT["t"] < RETRY_AFTER_S:
-        return res
-    if _LOCK.acquire(blocking=False):
-        try:
-            _LAST_ATTEMPT["t"] = time.time()
-            log.info("data is %.1fh old - auto-refreshing", age_h)
-            DATA["res"] = pl.run_pipeline()
-        except Exception:
-            log.exception("auto-refresh failed - serving the last good data")
-        finally:
-            _LOCK.release()
+    """Data for this request: always the stored copy (instant); kicks off a background refresh if stale."""
+    if _age_h(DATA["res"]) >= MAX_AGE_H:
+        start_refresh()
     return DATA["res"]
+
+
+try:                                    # start instantly from the committed snapshot
+    DATA["res"] = pl.load_cached()
+except Exception as e:                  # no snapshot at all (first ever run): nothing to show without it
+    log.info("no stored data (%s) - running pipeline once", e)
+    DATA["res"] = pl.run_pipeline()
+if _age_h(DATA["res"]) >= MAX_AGE_H:
+    start_refresh()
 
 
 def n_months(res) -> int:
@@ -279,6 +291,7 @@ trials_tab = html.Div([
 
 app.layout = html.Div(className="page", children=[
     dcc.Store(id="data-version", data=0),
+    dcc.Interval(id="poll", interval=10_000),
     dcc.Download(id="download"),
     html.Div(className="header", children=[
         html.Div([
@@ -291,7 +304,7 @@ app.layout = html.Div(className="page", children=[
         html.Div(className="header-right", children=[
             html.Div(id="status", className="status"),
             html.Button("⬇ CSV", id="btn-csv", className="btn"),
-            dcc.Loading(type="circle", color="#ff4b4b", children=html.Button("↻ Refresh data", id="btn-refresh",
+            html.Div(children=html.Button("↻ Refresh data", id="btn-refresh",
                                                                              className="btn btn-primary")),
         ]),
     ]),
@@ -328,16 +341,21 @@ app.layout = html.Div(className="page", children=[
 # --------------------------------------------------------------------------------------------
 # Callbacks
 # --------------------------------------------------------------------------------------------
-@app.callback(Output("data-version", "data"), Output("btn-refresh", "children"),
-              Input("btn-refresh", "n_clicks"), State("data-version", "data"), prevent_initial_call=True)
-def refresh(_, version):
-    try:
-        with _LOCK:
-            DATA["res"] = load_data(force_refresh=True)
-        return version + 1, "↻ Refresh data"
-    except Exception as e:
-        log.exception("refresh failed")
-        return no_update, "⚠ Refresh failed"
+@app.callback(Output("btn-refresh", "children"), Input("btn-refresh", "n_clicks"), prevent_initial_call=True)
+def refresh(_):
+    start_refresh(force=True)
+    return "↻ Refreshing…"
+
+
+@app.callback(Output("data-version", "data"), Output("btn-refresh", "children", allow_duplicate=True),
+              Input("poll", "n_intervals"), State("data-version", "data"), prevent_initial_call=True)
+def pick_up_refresh(_, version):
+    """Every few seconds: if a background refresh finished, bump the version so every view re-renders."""
+    if DATA["version"] != version:
+        return DATA["version"], "↻ Refresh data"
+    if _STATE["running"]:
+        return no_update, "↻ Refreshing…"
+    return no_update, ("⚠ Refresh failed" if _STATE["error"] else "↻ Refresh data")
 
 
 @app.callback(Output("range", "value"), Output("range", "max"), Output("range", "marks"),

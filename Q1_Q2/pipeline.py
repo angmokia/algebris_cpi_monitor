@@ -393,7 +393,13 @@ def _update_truflation(store: Path, full_refresh: bool) -> pd.DataFrame:
     cached = None if full_refresh or not store.exists() else pd.read_parquet(store)
     start = START_DATE if cached is None else str((cached.index.max() - timedelta(days=10)).date())
     sources = [TruflationAPISource(), TruflationGatewaySource()]
-    new = first_available([s for s in sources if not (isinstance(s, TruflationAPISource) and not s.api_key)], start)
+    try:
+        new = first_available([s for s in sources if not (isinstance(s, TruflationAPISource) and not s.api_key)], start)
+    except SourceError:
+        if cached is None:
+            raise
+        log.warning("Truflation sources unavailable - keeping stored history (last obs %s)", cached.index.max().date())
+        return cached                    # official CPI etc. still refresh; staleness is flagged by check_truflation
     df = new if cached is None else pd.concat([cached[cached.index < new.index.min()], new])
     return df[~df.index.duplicated(keep="last")].sort_index()
 

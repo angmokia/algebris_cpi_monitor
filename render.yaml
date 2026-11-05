@@ -10,7 +10,7 @@ services:
     autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
-        value: 3.10.11
+        value: 3.12.8
       - key: FRED_API_KEY        # optional: enables the CPI/PCE release calendar (set in the Render dashboard)
         sync: false
       - key: TRUFLATION_API_KEY  # optional: official Truflation API; otherwise the public TRUF.NETWORK gateway

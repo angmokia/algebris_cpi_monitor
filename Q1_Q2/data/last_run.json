@@ -1,9 +1,9 @@
 {
-  "run_at_utc": "2026-11-05T14:41:51+00:00",
-  "seconds": 3.3,
-  "truflation_source": "truflation_gateway",
-  "truflation_last_date": "2026-10-21",
-  "truflation_last_value": 3.038,
+  "run_at_utc": "2026-11-05T17:55:44+00:00",
+  "seconds": 12.5,
+  "truflation_source": "truflation_sdk",
+  "truflation_last_date": "2026-11-05",
+  "truflation_last_value": 3.291,
   "cpi_last_month": "2026-09",
   "cpi_last_yoy": 3.74,
   "next_cpi_release": "2026-11-10",
@@ -12,7 +12,6 @@
   "next_pce_release": "2026-11-25",
   "bls_crosscheck": true,
   "issues": [
-    "Truflation is stale: last obs 2026-10-21 (15d old)",
     "official CPI missing for ['2025-10']"
   ]
 }

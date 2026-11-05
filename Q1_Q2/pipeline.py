@@ -5,10 +5,9 @@ Sources
 -------
 Truflation US CPI Inflation Index (daily, YoY %)
     1. Official Truflation REST API  (api.truflation.com, needs TRUFLATION_API_KEY - paid)
-    2. TRUF.NETWORK public gateway   (no key) - Truflation publishes the same index on-chain as a
-       "primitive" stream; the gateway's read-only SQL endpoint returns the full daily history.
-       Stream metadata (stream id / data provider) is taken from the index's own page on
-       truflation.com/marketplace/us-inflation-rate.
+    2. TRUF.NETWORK via its official SDK (no key; signed free reads) - Truflation publishes the same index
+       on-chain as a "primitive" stream (id/provider from truflation.com/marketplace/us-inflation-rate)
+    3. TRUF.NETWORK gateway SQL      (worked until late Oct-2026, now 'adhoc query not allowed')
 Official US CPI (monthly index levels, BLS)
     1. FRED API (FRED_API_KEY) -> keyless FRED CSV download as fallback
     2. BLS Public Data API v2  -> used to cross-check the FRED copy (key optional)
@@ -32,6 +31,7 @@ import json
 import logging
 import os
 import re
+import secrets
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -125,6 +125,40 @@ class TruflationGatewaySource(DataSource):
         df = df.astype({"event_time": "int64", "value": "float64", "created_at": "int64"})
         # A primitive stream can in principle hold several versions of one event; keep the latest.
         df = df.sort_values(["event_time", "created_at"]).drop_duplicates("event_time", keep="last")
+        df["date"] = pd.to_datetime(df["event_time"], unit="s", utc=True).dt.tz_localize(None).dt.normalize()
+        out = df.groupby("date")["value"].last().to_frame("truflation_yoy")
+        out["source"] = self.name
+        return out
+
+
+class TruflationSDKSource(DataSource):
+    """Truflation US CPI Inflation Index via TRUF.NETWORK's official SDK (`trufnetwork-sdk-py`).
+
+    Since late Oct-2026 the gateway rejects ad-hoc SQL ('adhoc query not allowed'); reads now go through the
+    SDK's signed `get_records` call. Reads are free: a throwaway key is generated for each run and never stored.
+    The SDK ships Python 3.12 wheels only, so on other Pythons this source reports itself unavailable and the
+    pipeline falls back to the next source / the stored history."""
+    name = "truflation_sdk"
+    GATEWAY = "https://gateway.mainnet.truf.network"
+
+    def __init__(self, stream_id: str = TruflationGatewaySource.STREAM_ID,
+                 data_provider: str = TruflationGatewaySource.DATA_PROVIDER, **kw):
+        super().__init__(**kw)
+        self.stream_id, self.data_provider = stream_id, data_provider
+
+    def fetch(self, start: str = START_DATE) -> pd.DataFrame:
+        try:
+            from trufnetwork_sdk_py.client import TNClient
+        except ImportError as e:
+            raise SourceError(f"trufnetwork-sdk-py not installed ({e})")
+        client = TNClient(self.GATEWAY, secrets.token_hex(32))
+        resp = client.get_records(stream_id=self.stream_id, data_provider=self.data_provider,
+                                  date_from=int(pd.Timestamp(start, tz="UTC").timestamp()),
+                                  date_to=int(time.time()), use_cache=False)
+        recs = getattr(resp, "data", resp)
+        if not recs:
+            raise SourceError("SDK returned no records")
+        df = pd.DataFrame([(int(r["EventTime"]), float(r["Value"])) for r in recs], columns=["event_time", "value"])
         df["date"] = pd.to_datetime(df["event_time"], unit="s", utc=True).dt.tz_localize(None).dt.normalize()
         out = df.groupby("date")["value"].last().to_frame("truflation_yoy")
         out["source"] = self.name
@@ -392,7 +426,7 @@ def _update_truflation(store: Path, full_refresh: bool) -> pd.DataFrame:
     """Incremental: refetch only the last 10 days on top of the stored history."""
     cached = None if full_refresh or not store.exists() else pd.read_parquet(store)
     start = START_DATE if cached is None else str((cached.index.max() - timedelta(days=10)).date())
-    sources = [TruflationAPISource(), TruflationGatewaySource()]
+    sources = [TruflationAPISource(), TruflationSDKSource(), TruflationGatewaySource()]
     try:
         new = first_available([s for s in sources if not (isinstance(s, TruflationAPISource) and not s.api_key)], start)
     except SourceError:

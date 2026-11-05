@@ -2,8 +2,11 @@
 dash==4.4.1
 plotly==6.0.1
 pandas==2.2.3
-numpy==1.25.2
+numpy==1.26.4
 pyarrow==21.0.0
 requests==2.32.3
 python-dotenv==1.1.0
 gunicorn==26.2.0
+# TRUF.NETWORK SDK for live Truflation reads (Python 3.12 wheels; Render runs Linux)
+trufnetwork-sdk-py @ https://github.com/trufnetwork/sdk-py/releases/download/v0.7.13/trufnetwork_sdk_py-0.7.13-cp312-cp312-linux_x86_64.whl ; sys_platform == "linux"
+trufnetwork-sdk-py @ https://github.com/trufnetwork/sdk-py/releases/download/v0.7.13/trufnetwork_sdk_py-0.7.13-cp312-cp312-macosx_11_0_arm64.whl ; sys_platform == "darwin"
